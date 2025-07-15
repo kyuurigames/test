@@ -141,13 +141,14 @@
 
     <!-- Three.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- MMDParser for MMDLoader -->
+    <!-- Ammo.js (for physics, required by MMDLoader for some models) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/ammo.wasm.js"></script>
+    <!-- MMDParser for MMDLoader (MUST be loaded BEFORE MMDLoader.js) -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/mmdparser.min.js"></script>
     <!-- MMDLoader and MMDAnimationHelper -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/MMDLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/MMDAnimationHelper.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/CCDIKHelper.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/ammo.wasm.js"></script>
 
     <script type="module">
         // Firebase imports (Placeholder for future AI chat integration with Firestore)
@@ -211,10 +212,15 @@
         let chatHistory = []; // To store chat history for LLM
 
         // Initialize Ammo.js (for physics, required by MMDLoader for some models)
+        // Ammo.jsの初期化は、MMDLoaderがモデルをロードする前に完了している必要があります。
         Ammo().then(function (AmmoLib) {
             Ammo = AmmoLib;
-            init();
+            init(); // Ammo.jsがロードされた後にThree.jsの初期化を開始
             animate();
+        }).catch(function(error) {
+            console.error('Error loading Ammo.js:', error);
+            chatOutput.innerHTML += '<p class="text-red-500">エラー: 物理エンジン(Ammo.js)の読み込みに失敗しました。</p>';
+            loadingOverlay.style.display = 'none'; // エラー時もローディングを非表示に
         });
 
         function init() {
@@ -273,23 +279,23 @@
                         function (xhr) {
                             console.log((xhr.loaded / xhr.total * 100) + '% loaded VMD');
                         },
-                        // Error callback
+                        // Error callback for VMD
                         function (error) {
                             console.error('Error loading VMD:', error);
                             loadingOverlay.style.display = 'none'; // Hide loading overlay even on error
-                            chatOutput.innerHTML += '<p class="text-red-500">エラー: VMDモーションの読み込みに失敗しました。</p>';
+                            chatOutput.innerHTML += '<p class="text-red-500">エラー: VMDモーションの読み込みに失敗しました。ファイルパスを確認してください。</p>';
                         }
                     );
                 },
-                // Progress callback
+                // Progress callback for PMX
                 function (xhr) {
                     console.log((xhr.loaded / xhr.total * 100) + '% loaded PMX');
                 },
-                // Error callback
+                // Error callback for PMX
                 function (error) {
                     console.error('Error loading PMX:', error);
                     loadingOverlay.style.display = 'none'; // Hide loading overlay even on error
-                    chatOutput.innerHTML += '<p class="text-red-500">エラー: PMXモデルの読み込みに失敗しました。</p>';
+                    chatOutput.innerHTML += '<p class="text-red-500">エラー: PMXモデルの読み込みに失敗しました。ファイルパスとファイルが存在するか確認してください。</p>';
                 }
             );
 
@@ -353,7 +359,6 @@
         async function generateAIResponse(prompt) {
             // Placeholder for LLM call
             // In a real application, you would call the Gemini API here.
-            // Example structure for a Gemini API call:
             let chatHistoryForAPI = [];
             // Only send the last few turns to keep context manageable for the LLM
             const maxHistoryLength = 5; // Adjust as needed
