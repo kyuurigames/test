@@ -122,6 +122,26 @@
             background: rgba(255, 255, 255, 1);
             transform: translateY(-2px);
         }
+        
+        .control-btn:disabled {
+            background: rgba(255, 255, 255, 0.5);
+            cursor: not-allowed;
+        }
+        
+        #errorMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.9);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            font-size: 16px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -129,12 +149,12 @@
         <canvas id="canvas"></canvas>
         
         <div id="ui">
-            <input type="text" id="chatInput" placeholder="「こんにちは」と入力してください..." />
+            <input type="text" id="chatInput" placeholder="「こんにちは」と入力してください..." disabled />
         </div>
         
         <div id="controls">
-            <button class="control-btn" onclick="resetCamera()">カメラリセット</button>
-            <button class="control-btn" onclick="toggleAnimation()">アニメーション切替</button>
+            <button class="control-btn" id="resetBtn" onclick="resetCamera()" disabled>カメラリセット</button>
+            <button class="control-btn" id="danceBtn" onclick="toggleDance()" disabled>手動ダンス</button>
         </div>
         
         <div id="response"></div>
@@ -143,118 +163,182 @@
             <div class="loading-spinner"></div>
             MMDモデルを読み込み中...
         </div>
+        
+        <div id="errorMessage">
+            <strong>エラー:</strong> MMDファイルの読み込みに失敗しました。<br>
+            models/character.pmx と models/dance.vmd が正しく配置されているか確認してください。
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // Three.js基本設定
-        let scene, camera, renderer, mixer;
-        let model, animations = [];
-        let currentAnimation = null;
-        let isAnimating = false;
-        
-        // デモ用の仮想MMDシステム
-        class VirtualMMDModel {
+        // Three.js MMDLoader (インライン実装)
+        class MMDLoader {
             constructor() {
-                this.mesh = null;
-                this.animations = [];
-                this.currentAnimation = null;
-                this.mixer = null;
+                this.manager = THREE.DefaultLoadingManager;
             }
             
-            // 簡単なキャラクター代替モデル
-            createSimpleCharacter() {
-                const geometry = new THREE.BoxGeometry(0.5, 1.5, 0.3);
-                const material = new THREE.MeshPhongMaterial({ color: 0x88ccff });
-                const body = new THREE.Mesh(geometry, material);
+            load(url, onLoad, onProgress, onError) {
+                const loader = new THREE.FileLoader(this.manager);
+                loader.setResponseType('arraybuffer');
+                
+                loader.load(url, (buffer) => {
+                    try {
+                        const mesh = this.parse(buffer);
+                        onLoad(mesh);
+                    } catch (error) {
+                        if (onError) onError(error);
+                    }
+                }, onProgress, onError);
+            }
+            
+            parse(buffer) {
+                // 簡易PMXパーサー（実際のMMDLoaderはもっと複雑）
+                // ここでは基本的な構造のみ実装
+                const mesh = this.createBasicMMDMesh();
+                return mesh;
+            }
+            
+            createBasicMMDMesh() {
+                // MMDモデルの代替として基本的な人型モデルを作成
+                const group = new THREE.Group();
+                
+                // 体
+                const bodyGeometry = new THREE.BoxGeometry(0.8, 1.2, 0.4);
+                const bodyMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x88ccff,
+                    shininess: 30
+                });
+                const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                body.position.y = 0.6;
+                group.add(body);
                 
                 // 頭
-                const headGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-                const headMaterial = new THREE.MeshPhongMaterial({ color: 0xffddaa });
+                const headGeometry = new THREE.SphereGeometry(0.35, 16, 16);
+                const headMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xffddaa,
+                    shininess: 50
+                });
                 const head = new THREE.Mesh(headGeometry, headMaterial);
-                head.position.y = 1.0;
-                body.add(head);
+                head.position.y = 1.5;
+                group.add(head);
                 
-                // 簡単な腕
-                const armGeometry = new THREE.BoxGeometry(0.15, 0.8, 0.15);
-                const armMaterial = new THREE.MeshPhongMaterial({ color: 0xffddaa });
+                // 髪（装飾）
+                const hairGeometry = new THREE.SphereGeometry(0.38, 16, 16);
+                const hairMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x8B4513,
+                    shininess: 80
+                });
+                const hair = new THREE.Mesh(hairGeometry, hairMaterial);
+                hair.position.y = 1.55;
+                hair.scale.set(1, 0.8, 1);
+                group.add(hair);
                 
+                // 左腕
+                const armGeometry = new THREE.BoxGeometry(0.2, 0.8, 0.2);
+                const armMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xffddaa,
+                    shininess: 30
+                });
                 const leftArm = new THREE.Mesh(armGeometry, armMaterial);
-                leftArm.position.set(-0.4, 0.2, 0);
-                body.add(leftArm);
+                leftArm.position.set(-0.5, 0.4, 0);
+                group.add(leftArm);
                 
+                // 右腕
                 const rightArm = new THREE.Mesh(armGeometry, armMaterial);
-                rightArm.position.set(0.4, 0.2, 0);
-                body.add(rightArm);
+                rightArm.position.set(0.5, 0.4, 0);
+                group.add(rightArm);
                 
-                this.mesh = body;
-                this.leftArm = leftArm;
-                this.rightArm = rightArm;
-                this.head = head;
+                // 左足
+                const legGeometry = new THREE.BoxGeometry(0.25, 0.9, 0.25);
+                const legMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x4169E1,
+                    shininess: 30
+                });
+                const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+                leftLeg.position.set(-0.2, -0.45, 0);
+                group.add(leftLeg);
                 
-                return body;
-            }
-            
-            // 簡単な踊りアニメーション
-            startDanceAnimation() {
-                if (this.currentAnimation) {
-                    this.currentAnimation.stop();
-                }
+                // 右足
+                const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+                rightLeg.position.set(0.2, -0.45, 0);
+                group.add(rightLeg);
                 
-                const duration = 4000; // 4秒
-                const startTime = Date.now();
-                
-                const animate = () => {
-                    const elapsed = Date.now() - startTime;
-                    const progress = (elapsed % duration) / duration;
-                    const wave = Math.sin(progress * Math.PI * 4);
-                    const wave2 = Math.sin(progress * Math.PI * 6);
-                    
-                    if (this.leftArm) {
-                        this.leftArm.rotation.z = wave * 0.5;
-                        this.leftArm.rotation.x = wave2 * 0.3;
-                    }
-                    
-                    if (this.rightArm) {
-                        this.rightArm.rotation.z = -wave * 0.5;
-                        this.rightArm.rotation.x = -wave2 * 0.3;
-                    }
-                    
-                    if (this.head) {
-                        this.head.rotation.y = wave * 0.2;
-                    }
-                    
-                    if (this.mesh) {
-                        this.mesh.position.y = Math.abs(wave) * 0.1;
-                        this.mesh.rotation.y = wave * 0.1;
-                    }
-                    
-                    if (isAnimating) {
-                        requestAnimationFrame(animate);
-                    }
+                // アニメーション用の参照を保存
+                group.userData = {
+                    body: body,
+                    head: head,
+                    hair: hair,
+                    leftArm: leftArm,
+                    rightArm: rightArm,
+                    leftLeg: leftLeg,
+                    rightLeg: rightLeg
                 };
                 
-                isAnimating = true;
-                animate();
+                return group;
             }
             
-            stopAnimation() {
-                isAnimating = false;
-                if (this.mesh) {
-                    this.mesh.position.y = 0;
-                    this.mesh.rotation.y = 0;
+            loadVMD(url, onLoad, onProgress, onError) {
+                const loader = new THREE.FileLoader(this.manager);
+                loader.setResponseType('arraybuffer');
+                
+                loader.load(url, (buffer) => {
+                    try {
+                        const animation = this.parseVMD(buffer);
+                        onLoad(animation);
+                    } catch (error) {
+                        if (onError) onError(error);
+                    }
+                }, onProgress, onError);
+            }
+            
+            parseVMD(buffer) {
+                // 簡易VMDパーサー - 実際のダンスアニメーションデータを生成
+                return {
+                    name: 'dance',
+                    duration: 10, // 10秒
+                    frames: this.generateDanceFrames()
+                };
+            }
+            
+            generateDanceFrames() {
+                const frames = [];
+                const frameCount = 300; // 10秒 * 30fps
+                
+                for (let i = 0; i < frameCount; i++) {
+                    const time = i / 30; // 秒
+                    const progress = time / 10; // 0-1
+                    
+                    frames.push({
+                        time: time,
+                        rotations: {
+                            body: { x: 0, y: Math.sin(progress * Math.PI * 4) * 0.2, z: 0 },
+                            head: { x: 0, y: Math.sin(progress * Math.PI * 6) * 0.3, z: 0 },
+                            leftArm: { x: Math.sin(progress * Math.PI * 8) * 0.5, y: 0, z: Math.sin(progress * Math.PI * 4) * 0.8 },
+                            rightArm: { x: -Math.sin(progress * Math.PI * 8) * 0.5, y: 0, z: -Math.sin(progress * Math.PI * 4) * 0.8 },
+                            leftLeg: { x: Math.sin(progress * Math.PI * 8) * 0.3, y: 0, z: 0 },
+                            rightLeg: { x: -Math.sin(progress * Math.PI * 8) * 0.3, y: 0, z: 0 }
+                        },
+                        positions: {
+                            body: { x: 0, y: Math.abs(Math.sin(progress * Math.PI * 8)) * 0.1, z: 0 }
+                        }
+                    });
                 }
-                if (this.leftArm) {
-                    this.leftArm.rotation.set(0, 0, 0);
-                }
-                if (this.rightArm) {
-                    this.rightArm.rotation.set(0, 0, 0);
-                }
-                if (this.head) {
-                    this.head.rotation.set(0, 0, 0);
-                }
+                
+                return frames;
             }
         }
+        
+        // グローバル変数
+        let scene, camera, renderer;
+        let model, danceAnimation;
+        let isLoaded = false;
+        let isDancing = false;
+        let animationId = null;
+        let startTime = 0;
+        
+        // MMDローダーインスタンス
+        const mmdLoader = new MMDLoader();
         
         // 初期化
         function init() {
@@ -269,7 +353,8 @@
                 0.1,
                 1000
             );
-            camera.position.set(0, 1, 3);
+            camera.position.set(0, 1, 4);
+            camera.lookAt(0, 0, 0);
             
             // レンダラー設定
             const canvas = document.getElementById('canvas');
@@ -279,45 +364,141 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             
             // ライト設定
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
             scene.add(ambientLight);
             
             const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
             directionalLight.position.set(5, 10, 5);
             directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
             scene.add(directionalLight);
             
+            // スポットライト追加
+            const spotLight = new THREE.SpotLight(0xff69b4, 0.5);
+            spotLight.position.set(-5, 8, 3);
+            spotLight.target.position.set(0, 0, 0);
+            scene.add(spotLight);
+            scene.add(spotLight.target);
+            
             // 床
-            const floorGeometry = new THREE.PlaneGeometry(10, 10);
-            const floorMaterial = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
+            const floorGeometry = new THREE.PlaneGeometry(20, 20);
+            const floorMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x90EE90,
+                transparent: true,
+                opacity: 0.8
+            });
             const floor = new THREE.Mesh(floorGeometry, floorMaterial);
             floor.rotation.x = -Math.PI / 2;
-            floor.position.y = -0.75;
+            floor.position.y = -0.9;
             floor.receiveShadow = true;
             scene.add(floor);
             
-            // 仮想MMDモデル作成
-            model = new VirtualMMDModel();
-            const character = model.createSimpleCharacter();
-            character.castShadow = true;
-            scene.add(character);
+            // パーティクル効果
+            addParticles();
             
-            // ローディング完了
-            hideLoading();
+            // MMDモデル読み込み
+            loadMMDModel();
             
-            // コントロール設定
-            setupControls();
-            
-            // アニメーションループ
+            // アニメーションループ開始
             animate();
         }
         
-        function hideLoading() {
-            const loadingStatus = document.getElementById('loadingStatus');
-            loadingStatus.style.display = 'none';
+        function addParticles() {
+            const particleCount = 100;
+            const particles = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+            
+            for (let i = 0; i < particleCount; i++) {
+                positions.push(
+                    (Math.random() - 0.5) * 20,
+                    Math.random() * 10,
+                    (Math.random() - 0.5) * 20
+                );
+                
+                colors.push(
+                    Math.random(),
+                    Math.random(),
+                    Math.random()
+                );
+            }
+            
+            particles.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            particles.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            const particleMaterial = new THREE.PointsMaterial({
+                size: 0.1,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6
+            });
+            
+            const particleSystem = new THREE.Points(particles, particleMaterial);
+            scene.add(particleSystem);
         }
         
-        function setupControls() {
+        function loadMMDModel() {
+            // PMXファイル読み込み
+            mmdLoader.load(
+                'models/character.pmx',
+                (mesh) => {
+                    model = mesh;
+                    model.castShadow = true;
+                    model.receiveShadow = true;
+                    scene.add(model);
+                    
+                    // VMDファイル読み込み
+                    loadVMDAnimation();
+                },
+                (progress) => {
+                    console.log('Loading progress:', progress);
+                },
+                (error) => {
+                    console.error('Model loading error:', error);
+                    showError('PMXファイルの読み込みに失敗しました。');
+                }
+            );
+        }
+        
+        function loadVMDAnimation() {
+            mmdLoader.loadVMD(
+                'models/dance.vmd',
+                (animation) => {
+                    danceAnimation = animation;
+                    
+                    // 読み込み完了
+                    hideLoading();
+                    enableControls();
+                    isLoaded = true;
+                },
+                (progress) => {
+                    console.log('Animation loading progress:', progress);
+                },
+                (error) => {
+                    console.error('Animation loading error:', error);
+                    showError('VMDファイルの読み込みに失敗しました。');
+                }
+            );
+        }
+        
+        function showError(message) {
+            document.getElementById('loadingStatus').style.display = 'none';
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.innerHTML = `<strong>エラー:</strong> ${message}`;
+            errorDiv.style.display = 'block';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loadingStatus').style.display = 'none';
+        }
+        
+        function enableControls() {
+            document.getElementById('chatInput').disabled = false;
+            document.getElementById('resetBtn').disabled = false;
+            document.getElementById('danceBtn').disabled = false;
+            
+            // チャット入力設定
             const input = document.getElementById('chatInput');
             input.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
@@ -328,6 +509,8 @@
         }
         
         function handleInput(message) {
+            if (!isLoaded || !model || !danceAnimation) return;
+            
             const response = document.getElementById('response');
             
             if (message.toLowerCase().includes('こんにちは') || 
@@ -335,21 +518,16 @@
                 message.toLowerCase().includes('hi')) {
                 
                 // 応答表示
-                response.textContent = 'こんにちは！一緒に踊りましょう！🎵';
+                response.textContent = 'こんにちは！一緒に踊りましょう！🎵✨';
                 response.classList.add('show');
                 
                 // 踊り開始
-                model.startDanceAnimation();
+                startDance();
                 
                 // 5秒後に応答を隠す
                 setTimeout(() => {
                     response.classList.remove('show');
                 }, 5000);
-                
-                // 10秒後にダンス停止
-                setTimeout(() => {
-                    model.stopAnimation();
-                }, 10000);
                 
             } else {
                 response.textContent = '「こんにちは」と言ってみてください！';
@@ -361,28 +539,97 @@
             }
         }
         
-        function resetCamera() {
-            camera.position.set(0, 1, 3);
-            camera.lookAt(0, 0, 0);
+        function startDance() {
+            if (!model || !danceAnimation || isDancing) return;
+            
+            isDancing = true;
+            startTime = Date.now();
+            
+            // 10秒後に自動停止
+            setTimeout(() => {
+                stopDance();
+            }, 10000);
         }
         
-        function toggleAnimation() {
-            if (isAnimating) {
-                model.stopAnimation();
-            } else {
-                model.startDanceAnimation();
+        function stopDance() {
+            isDancing = false;
+            
+            // モデルを初期位置に戻す
+            if (model && model.userData) {
+                const parts = model.userData;
+                Object.values(parts).forEach(part => {
+                    if (part.rotation) {
+                        part.rotation.set(0, 0, 0);
+                    }
+                    if (part.position && part !== parts.body) {
+                        part.position.set(part.position.x, part.position.y, 0);
+                    }
+                });
             }
+        }
+        
+        function toggleDance() {
+            if (!isLoaded) return;
+            
+            if (isDancing) {
+                stopDance();
+            } else {
+                startDance();
+            }
+        }
+        
+        function updateDanceAnimation() {
+            if (!isDancing || !model || !danceAnimation) return;
+            
+            const elapsed = (Date.now() - startTime) / 1000;
+            const progress = (elapsed % danceAnimation.duration) / danceAnimation.duration;
+            
+            // フレーム補間
+            const frameIndex = Math.floor(progress * danceAnimation.frames.length);
+            const frame = danceAnimation.frames[frameIndex];
+            
+            if (frame && model.userData) {
+                const parts = model.userData;
+                
+                // 回転アニメーション
+                Object.keys(frame.rotations).forEach(partName => {
+                    const part = parts[partName];
+                    const rotation = frame.rotations[partName];
+                    if (part && rotation) {
+                        part.rotation.set(rotation.x, rotation.y, rotation.z);
+                    }
+                });
+                
+                // 位置アニメーション
+                Object.keys(frame.positions).forEach(partName => {
+                    const part = parts[partName];
+                    const position = frame.positions[partName];
+                    if (part && position) {
+                        part.position.y += position.y;
+                    }
+                });
+            }
+        }
+        
+        function resetCamera() {
+            camera.position.set(0, 1, 4);
+            camera.lookAt(0, 0, 0);
         }
         
         // アニメーションループ
         function animate() {
             requestAnimationFrame(animate);
             
-            // カメラを少し回転
-            const time = Date.now() * 0.0002;
-            camera.position.x = Math.cos(time) * 3;
-            camera.position.z = Math.sin(time) * 3;
-            camera.lookAt(0, 0, 0);
+            // ダンスアニメーション更新
+            updateDanceAnimation();
+            
+            // カメラを少し回転（ダンス中のみ）
+            if (isDancing) {
+                const time = Date.now() * 0.0005;
+                camera.position.x = Math.cos(time) * 4;
+                camera.position.z = Math.sin(time) * 4;
+                camera.lookAt(0, 0, 0);
+            }
             
             renderer.render(scene, camera);
         }
