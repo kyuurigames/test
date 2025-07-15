@@ -3,504 +3,383 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MMD AI Assistant</title>
+    <title>AI MMD アシスタント</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
             margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            height: 100vh;
-            overflow: hidden;
+            overflow: hidden; /* Prevent scrollbars */
         }
-
         #container {
             position: relative;
             width: 100%;
-            height: 100%;
-        }
-
-        #canvas-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-
-        #ui-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 100;
-        }
-
-        #chat-container {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            max-width: 600px;
-            margin: 0 auto;
-            pointer-events: auto;
-        }
-
-        #chat-messages {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 10px;
-            max-height: 300px;
-            overflow-y: auto;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-        }
-
-        #chat-input-container {
+            height: 100vh; /* Full viewport height */
             display: flex;
-            gap: 10px;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #ffffff; /* White background for the main area */
+            border-radius: 1rem; /* Rounded corners */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Soft shadow */
+            padding: 1.5rem;
+            max-width: 1200px; /* Max width for larger screens */
+            margin: 1rem; /* Margin around the container */
         }
-
-        #chat-input {
-            flex: 1;
-            padding: 15px;
-            border: none;
-            border-radius: 25px;
-            background: rgba(255, 255, 255, 0.9);
-            font-size: 16px;
-            outline: none;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        #send-button {
-            padding: 15px 25px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 16px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-        }
-
-        #send-button:hover {
-            background: #5a6fd8;
-            transform: translateY(-2px);
-        }
-
-        .message {
-            margin-bottom: 15px;
-            padding: 12px;
-            border-radius: 10px;
-            line-height: 1.4;
-        }
-
-        .user-message {
-            background: #e3f2fd;
-            text-align: right;
-            margin-left: 60px;
-        }
-
-        .ai-message {
-            background: #f3e5f5;
-            margin-right: 60px;
-        }
-
-        #loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-            z-index: 200;
-        }
-
-        #controls {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            pointer-events: auto;
-        }
-
-        .control-button {
+        canvas {
             display: block;
-            margin-bottom: 10px;
-            padding: 10px 15px;
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
+            width: 100%;
+            height: calc(100vh - 200px); /* Adjust height to make space for chat */
+            background-color: #e2e8f0; /* Light gray background for canvas */
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
         }
-
-        .control-button:hover {
-            background: rgba(255, 255, 255, 1);
-            transform: translateY(-2px);
+        #chat-area {
+            width: 100%;
+            max-width: 600px; /* Max width for chat input */
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
         }
-
-        #model-info {
-            position: absolute;
-            top: 20px;
-            left: 20px;
+        #chat-output {
+            background-color: #f8fafc; /* Very light blue-gray */
+            border: 1px solid #cbd5e1; /* Light border */
+            border-radius: 0.5rem;
+            padding: 1rem;
+            min-height: 80px;
+            max-height: 150px;
+            overflow-y: auto;
+            color: #334155; /* Darker text */
+        }
+        #chat-input {
+            padding: 0.75rem 1rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.5rem;
+            outline: none;
+            width: calc(100% - 80px); /* Adjust width for button */
+            transition: border-color 0.2s;
+        }
+        #chat-input:focus {
+            border-color: #6366f1; /* Indigo focus color */
+        }
+        #send-button {
+            padding: 0.75rem 1.25rem;
+            background-color: #6366f1; /* Indigo */
             color: white;
-            font-size: 14px;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-            pointer-events: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            border: none;
+            font-weight: 600;
+        }
+        #send-button:hover {
+            background-color: #4f46e5; /* Darker indigo on hover */
+            transform: translateY(-1px);
+        }
+        #send-button:active {
+            transform: translateY(0);
+        }
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+            border-radius: 1rem;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #6366f1;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-    <div id="container">
-        <div id="canvas-container"></div>
-        
-        <div id="ui-overlay">
-            <div id="loading">MMDモデルを読み込み中...</div>
-            
-            <div id="model-info" style="display: none;">
-                <div>モデル: 読み込み済み</div>
-                <div>アニメーション: 準備完了</div>
+    <div id="container" class="rounded-2xl shadow-xl p-6 flex flex-col items-center">
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="spinner"></div>
+            <p class="mt-4 text-lg text-gray-700">モデルを読み込み中...</p>
+        </div>
+        <canvas id="mmd-canvas"></canvas>
+        <div id="chat-area" class="mt-4 w-full max-w-xl">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2 text-center">AIアシスタント</h2>
+            <div id="chat-output" class="rounded-lg border border-gray-300 p-4 bg-gray-50 text-gray-700 text-sm overflow-y-auto max-h-40">
+                <p>アシスタント: こんにちは！何かお手伝いできることはありますか？</p>
             </div>
-            
-            <div id="controls">
-                <button class="control-button" onclick="playRandomMotion()">モーション再生</button>
-                <button class="control-button" onclick="togglePause()">一時停止/再生</button>
-                <button class="control-button" onclick="resetCamera()">カメラリセット</button>
-            </div>
-            
-            <div id="chat-container">
-                <div id="chat-messages"></div>
-                <div id="chat-input-container">
-                    <input type="text" id="chat-input" placeholder="メッセージを入力してください..." onkeypress="handleKeyPress(event)">
-                    <button id="send-button" onclick="sendMessage()">送信</button>
-                </div>
+            <div class="input-group">
+                <input type="text" id="chat-input" placeholder="メッセージを入力..." class="flex-grow rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200">
+                <button id="send-button" class="rounded-lg bg-indigo-600 text-white px-5 py-2 font-semibold hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-200">送信</button>
             </div>
         </div>
     </div>
 
+    <!-- Three.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/loaders/MMDLoader.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/animation/MMDAnimationHelper.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/controls/OrbitControls.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/animation/AnimationMixer.js"></script>
+    <!-- MMDLoader and MMDAnimationHelper -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/MMDLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/MMDAnimationHelper.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/CCDIKHelper.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/ammo.wasm.js"></script>
 
-    <script>
-        let scene, camera, renderer, model, helper;
-        let mixer, clock;
-        let isModelLoaded = false;
-        let isPaused = false;
-        let currentAction = null;
-        let loader;
-        let loadedMotions = {};
-        let isLoadingModel = true;
+    <script type="module">
+        // Firebase imports (Placeholder for future AI chat integration with Firestore)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Three.jsの初期化
-        function init() {
-            // シーンの作成
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87CEEB);
+        // Global variables for Firebase (provided by Canvas environment)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-            // カメラの作成
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 10, 20);
+        let app, db, auth, userId;
+        let isAuthReady = false;
 
-            // レンダラーの作成
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            renderer.outputEncoding = THREE.sRGBEncoding;
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
+        // Initialize Firebase and authenticate
+        const initFirebase = async () => {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
 
-            // ライトの設定
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
-            scene.add(ambientLight);
-
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-            directionalLight.position.set(-1, 1, 1);
-            directionalLight.castShadow = true;
-            directionalLight.shadow.mapSize.width = 2048;
-            directionalLight.shadow.mapSize.height = 2048;
-            scene.add(directionalLight);
-
-            // 地面の作成
-            const geometry = new THREE.PlaneGeometry(100, 100);
-            const material = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
-            const ground = new THREE.Mesh(geometry, material);
-            ground.rotation.x = -Math.PI / 2;
-            ground.receiveShadow = true;
-            scene.add(ground);
-
-            // コントロールの設定
-            const controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.target.set(0, 10, 0);
-            controls.maxDistance = 50;
-            controls.minDistance = 5;
-
-            // クロック
-            clock = new THREE.Clock();
-
-            // MMDモデルとアニメーションを読み込み
-            loadMMDModel();
-            
-            // アニメーションループ
-            animate();
-        }
-
-        // MMDモデルの読み込み
-        function loadMMDModel() {
-            loader = new THREE.MMDLoader();
-            
-            // プログレスコールバック
-            const onProgress = (progress) => {
-                const percent = Math.round((progress.loaded / progress.total) * 100);
-                document.getElementById('loading').textContent = `MMDモデルを読み込み中... ${percent}%`;
-            };
-
-            // エラーハンドリング
-            const onError = (error) => {
-                console.error('モデルの読み込みに失敗しました:', error);
-                document.getElementById('loading').textContent = 'モデルの読み込みに失敗しました';
-            };
-
-            // モデルの読み込み
-            loader.load(
-                'models/model.pmx',
-                (object) => {
-                    model = object;
-                    model.position.set(0, 0, 0);
-                    model.scale.set(1, 1, 1);
-                    model.castShadow = true;
-                    model.receiveShadow = true;
-                    
-                    // マテリアルの設定
-                    model.traverse((child) => {
-                        if (child.isMesh) {
-                            child.castShadow = true;
-                            child.receiveShadow = true;
-                        }
-                    });
-                    
-                    scene.add(model);
-                    
-                    // アニメーションヘルパーの初期化
-                    helper = new THREE.MMDAnimationHelper({
-                        afterglow: 2.0,
-                        resetPhysicsOnLoop: true
-                    });
-                    
-                    // モーションの読み込み
-                    loadMotions();
-                },
-                onProgress,
-                onError
-            );
-        }
-
-        // モーションの読み込み
-        function loadMotions() {
-            const motionFiles = ['models/motion.vmd'];
-            let loadedCount = 0;
-            
-            motionFiles.forEach((motionFile, index) => {
-                loader.loadVMD(
-                    motionFile,
-                    (vmd) => {
-                        loadedMotions[`motion_${index}`] = vmd;
-                        loadedCount++;
-                        
-                        if (loadedCount === motionFiles.length) {
-                            // すべてのモーションが読み込まれたら初期化完了
-                            initializeAnimation();
-                        }
-                    },
-                    (progress) => {
-                        const percent = Math.round((progress.loaded / progress.total) * 100);
-                        document.getElementById('loading').textContent = `モーションを読み込み中... ${percent}%`;
-                    },
-                    (error) => {
-                        console.error('モーションの読み込みに失敗しました:', error);
-                        loadedCount++; // エラーでもカウントを進める
-                        
-                        if (loadedCount === motionFiles.length) {
-                            initializeAnimation();
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("Firebase authenticated. User ID:", userId);
+                    } else {
+                        // Sign in anonymously if no token is available or user is not signed in
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                            userId = auth.currentUser.uid;
+                            console.log("Signed in with custom token. User ID:", userId);
+                        } else {
+                            await signInAnonymously(auth);
+                            userId = auth.currentUser.uid;
+                            console.log("Signed in anonymously. User ID:", userId);
                         }
                     }
-                );
-            });
-        }
-
-        // アニメーションの初期化
-        function initializeAnimation() {
-            try {
-                // 基本モーションを設定
-                if (loadedMotions.motion_0) {
-                    helper.add(model, {
-                        animation: loadedMotions.motion_0,
-                        physics: true
-                    });
-                }
-                
-                mixer = helper.objects.get(model).mixer;
-                
-                // モデル読み込み完了
-                isModelLoaded = true;
-                isLoadingModel = false;
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('model-info').style.display = 'block';
-                
-                // 初期モーションを開始
-                playMotion();
-                
-                console.log('MMDモデルとアニメーションの初期化が完了しました');
+                    isAuthReady = true;
+                });
             } catch (error) {
-                console.error('アニメーションの初期化に失敗しました:', error);
-                document.getElementById('loading').textContent = 'アニメーションの初期化に失敗しました';
+                console.error("Firebase initialization or authentication error:", error);
             }
-        }
+        };
 
-        // モーションを再生
-        function playMotion() {
-            if (!model || !helper || !mixer) return;
-            
-            try {
-                // 現在のアクションを停止
-                if (currentAction) {
-                    currentAction.stop();
+        initFirebase();
+
+
+        let scene, camera, renderer, helper;
+        let model, mixer;
+        const clock = new THREE.Clock();
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const chatOutput = document.getElementById('chat-output');
+        const chatInput = document.getElementById('chat-input');
+        const sendButton = document.getElementById('send-button');
+        let chatHistory = []; // To store chat history for LLM
+
+        // Initialize Ammo.js (for physics, required by MMDLoader for some models)
+        Ammo().then(function (AmmoLib) {
+            Ammo = AmmoLib;
+            init();
+            animate();
+        });
+
+        function init() {
+            const container = document.getElementById('container');
+            const canvas = document.getElementById('mmd-canvas');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xffffff); // White background for the 3D scene
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 1, 1000);
+            camera.position.set(0, 10, 30); // Adjust camera position
+            camera.lookAt(new THREE.Vector3(0, 10, 0)); // Look at the center of the model
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0x666666);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0x887766);
+            directionalLight.position.set(-1, 1, 1).normalize();
+            scene.add(directionalLight);
+
+            // MMD Helper
+            helper = new THREE.MMDAnimationHelper();
+
+            // MMD Loader
+            const loader = new THREE.MMDLoader();
+
+            // Load PMX model
+            loader.load(
+                'models/character.pmx', // Path to your PMX model
+                function (object) {
+                    model = object;
+                    scene.add(model);
+                    console.log('PMX model loaded:', model);
+
+                    // Load VMD motion
+                    loader.loadVMD(
+                        'models/dance.vmd', // Path to your VMD motion data
+                        function (vmd) {
+                            helper.add(model, {
+                                animation: vmd,
+                                physics: true // Enable physics if the model supports it
+                            });
+                            helper.enable('physics', true); // Ensure physics is enabled
+                            mixer = helper.objects.get(model).mixer;
+                            console.log('VMD motion loaded and applied.');
+                            loadingOverlay.style.display = 'none'; // Hide loading overlay
+                        },
+                        // Progress callback
+                        function (xhr) {
+                            console.log((xhr.loaded / xhr.total * 100) + '% loaded VMD');
+                        },
+                        // Error callback
+                        function (error) {
+                            console.error('Error loading VMD:', error);
+                            loadingOverlay.style.display = 'none'; // Hide loading overlay even on error
+                            chatOutput.innerHTML += '<p class="text-red-500">エラー: VMDモーションの読み込みに失敗しました。</p>';
+                        }
+                    );
+                },
+                // Progress callback
+                function (xhr) {
+                    console.log((xhr.loaded / xhr.total * 100) + '% loaded PMX');
+                },
+                // Error callback
+                function (error) {
+                    console.error('Error loading PMX:', error);
+                    loadingOverlay.style.display = 'none'; // Hide loading overlay even on error
+                    chatOutput.innerHTML += '<p class="text-red-500">エラー: PMXモデルの読み込みに失敗しました。</p>';
                 }
-                
-                // 新しいアクションを作成して再生
-                const actions = mixer.clipAction(mixer._clips[0]);
-                if (actions) {
-                    actions.reset();
-                    actions.play();
-                    currentAction = actions;
-                    console.log('モーションを再生中');
-                } else {
-                    console.log('アクションが見つかりませんでした');
-                }
-            } catch (error) {
-                console.error('モーションの再生に失敗しました:', error);
-            }
+            );
+
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize, false);
+            onWindowResize(); // Initial call to set canvas size
         }
 
-        // ランダムモーション（VMDの場合は同じモーションを再生）
-        function playRandomMotion() {
-            if (!mixer) return;
-            
-            // VMDモーションをリスタート
-            if (currentAction) {
-                currentAction.reset();
-                currentAction.play();
-                console.log('モーションをリスタートしました');
-            } else {
-                playMotion();
-            }
+        function onWindowResize() {
+            const canvas = document.getElementById('mmd-canvas');
+            const container = document.getElementById('container');
+
+            // Calculate new canvas dimensions based on container and chat area
+            const chatAreaHeight = document.getElementById('chat-area').offsetHeight + 32; // Add padding
+            const newCanvasHeight = container.clientHeight - chatAreaHeight - 32; // Subtract padding/margin
+
+            canvas.style.width = '100%';
+            canvas.style.height = `${newCanvasHeight}px`;
+
+            camera.aspect = canvas.clientWidth / canvas.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
         }
 
-        // 一時停止/再生
-        function togglePause() {
-            if (!mixer) return;
-            
-            isPaused = !isPaused;
-            
-            if (isPaused) {
-                mixer.timeScale = 0;
-                console.log('一時停止');
-            } else {
-                mixer.timeScale = 1;
-                console.log('再生');
-            }
-        }
-
-        // カメラリセット
-        function resetCamera() {
-            camera.position.set(0, 10, 20);
-            camera.lookAt(0, 10, 0);
-        }
-
-        // メインアニメーションループ
         function animate() {
             requestAnimationFrame(animate);
-
             const delta = clock.getDelta();
-
-            if (isModelLoaded && helper && !isPaused) {
+            if (helper) {
                 helper.update(delta);
             }
-
             renderer.render(scene, camera);
         }
 
-        // チャット機能
-        function sendMessage() {
-            const input = document.getElementById('chat-input');
-            const message = input.value.trim();
-            if (!message) return;
+        // Simple AI Chat Logic (Placeholder)
+        sendButton.addEventListener('click', async () => {
+            const userMessage = chatInput.value.trim();
+            if (userMessage) {
+                chatOutput.innerHTML += `<p class="text-right text-indigo-700">あなた: ${userMessage}</p>`;
+                chatInput.value = '';
+                chatOutput.scrollTop = chatOutput.scrollHeight; // Scroll to bottom
 
-            // ユーザーメッセージを表示
-            addMessage(message, 'user');
-            input.value = '';
+                // Add user message to chat history
+                chatHistory.push({ role: "user", parts: [{ text: userMessage }] });
 
-            // 話している間のモーション（モーションをリスタート）
-            if (isModelLoaded) {
-                playRandomMotion();
+                // Simulate AI response (replace with actual LLM call later)
+                const assistantResponse = await generateAIResponse(userMessage);
+                chatOutput.innerHTML += `<p class="text-left text-gray-700">アシスタント: ${assistantResponse}</p>`;
+                chatOutput.scrollTop = chatOutput.scrollHeight; // Scroll to bottom
+
+                // Add assistant response to chat history
+                chatHistory.push({ role: "model", parts: [{ text: assistantResponse }] });
             }
-
-            // 簡単なAI応答をシミュレート
-            setTimeout(() => {
-                const responses = [
-                    'こんにちは！何かお手伝いできることはありますか？',
-                    'それは興味深いですね！もっと詳しく聞かせてください。',
-                    'なるほど、理解しました。他に何か質問はありますか？',
-                    'すばらしい質問ですね！一緒に考えてみましょう。',
-                    'ありがとうございます！お役に立てて嬉しいです。',
-                    'おもしろいトピックですね！詳しく教えてください。',
-                    'そうですね、私もそう思います。',
-                    'もう少し詳しく説明していただけますか？'
-                ];
-                const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-                addMessage(randomResponse, 'ai');
-            }, 1000);
-        }
-
-        function addMessage(message, sender) {
-            const messagesContainer = document.getElementById('chat-messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${sender}-message`;
-            messageDiv.textContent = message;
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-
-        function handleKeyPress(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
-        }
-
-        // ウィンドウリサイズ対応
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // 初期化
-        init();
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendButton.click();
+            }
+        });
 
-        // 初期メッセージ
-        addMessage('こんにちは！私はMMD AIアシスタントです。何でもお聞きください！', 'ai');
+        async function generateAIResponse(prompt) {
+            // Placeholder for LLM call
+            // In a real application, you would call the Gemini API here.
+            // Example structure for a Gemini API call:
+            let chatHistoryForAPI = [];
+            // Only send the last few turns to keep context manageable for the LLM
+            const maxHistoryLength = 5; // Adjust as needed
+            if (chatHistory.length > maxHistoryLength) {
+                chatHistoryForAPI = chatHistory.slice(-maxHistoryLength);
+            } else {
+                chatHistoryForAPI = chatHistory;
+            }
+
+            const payload = { contents: chatHistoryForAPI };
+            const apiKey = ""; // Canvas will provide this at runtime
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    return result.candidates[0].content.parts[0].text;
+                } else {
+                    console.error("Unexpected API response structure:", result);
+                    return "すみません、理解できませんでした。";
+                }
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                return "現在、AIアシスタントは利用できません。後でもう一度お試しください。";
+            }
+        }
     </script>
 </body>
 </html>
