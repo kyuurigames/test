@@ -141,36 +141,20 @@
 
     <!-- Three.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- Ammo.js (for physics, required by MMDLoader for some models) -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/ammo.wasm.js"></script>
-    <!-- MMDParser for MMDLoader (MUST be loaded BEFORE MMDLoader.js) -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/mmdparser.min.js"></script>
-    <!-- Explicitly attach MMDParser to THREE object if it's not already there -->
-    <script>
-        if (typeof MMDParser !== 'undefined' && typeof THREE !== 'undefined' && !THREE.MMDParser) {
-            THREE.MMDParser = MMDParser;
-            console.log('MMDParser explicitly attached to THREE.');
-        }
-    </script>
-    <!-- MMDLoader and MMDAnimationHelper -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/MMDLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/MMDAnimationHelper.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/CCDIKHelper.js"></script>
+    <!-- three-mmd-loader: Bundles MMDLoader, MMDAnimationHelper, MMDParser, Ammo.js -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/three-mmd-loader@0.0.11/dist/mmd-loader.min.js"></script>
 
-    <!-- Changed from type="module" to a regular script -->
-    <script>
-        // Firebase imports (Placeholder for future AI chat integration with Firestore)
-        // Note: Firebase imports are still ES Modules. If __firebase_config is provided,
-        // Firebase will be initialized. Otherwise, it will log a warning and skip initialization.
-        // If you need Firebase functionality and this script is not a module,
-        // you might need to load Firebase SDKs as global scripts or adjust the initialization.
-        // For now, it will work as long as you don't explicitly rely on Firebase functionality
-        // that requires module imports in this global script context.
-        // For the purpose of this demo, we'll assume the global variables are sufficient
-        // or Firebase is not strictly required for the core MMD + Chat functionality.
+    <script type="module">
+        // Firebase imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Import MMDLoader and MMDAnimationHelper from three-mmd-loader
+        // Note: These are imported from the bundled library, not directly from Three.js examples
+        import { MMDLoader, MMDAnimationHelper } from 'https://cdn.jsdelivr.net/npm/three-mmd-loader@0.0.11/dist/mmd-loader.min.js';
 
         // Global variables for Firebase (provided by Canvas environment)
-        // These variables are made available globally by the Canvas environment.
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
@@ -183,13 +167,6 @@
             // Only initialize Firebase if firebaseConfig contains a projectId
             if (firebaseConfig && firebaseConfig.projectId) {
                 try {
-                    // Dynamically import Firebase modules if needed, or ensure they are loaded globally
-                    // For now, assuming Firebase SDK is globally available or not critical for core demo.
-                    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
-                    const { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
-                    const { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-
-
                     app = initializeApp(firebaseConfig);
                     db = getFirestore(app);
                     auth = getAuth(app);
@@ -232,16 +209,15 @@
         const sendButton = document.getElementById('send-button');
         let chatHistory = []; // To store chat history for LLM
 
-        // Initialize Ammo.js (for physics, required by MMDLoader for some models)
-        // Ammo.jsの初期化は、MMDLoaderがモデルをロードする前に完了している必要があります。
-        Ammo().then(function (AmmoLib) {
-            Ammo = AmmoLib;
-            init(); // Ammo.jsがロードされた後にThree.jsの初期化を開始
+        // Ammo.jsはthree-mmd-loaderにバンドルされているため、個別の初期化は不要です。
+        // ただし、MMDLoaderがAmmo.jsのグローバルな'Ammo'オブジェクトを期待する場合があるため、
+        // 念のため、three-mmd-loaderがロードされた後にMMDLoaderの初期化を行うようにします。
+        // three-mmd-loaderはAmmo.jsを内部で管理するため、Ammo().then(...)は不要になります。
+
+        // Three.jsの初期化とMMDモデルのロードは、DOMContentLoadedイベント後に行うのが確実です。
+        document.addEventListener('DOMContentLoaded', () => {
+            init();
             animate();
-        }).catch(function(error) {
-            console.error('Error loading Ammo.js:', error);
-            chatOutput.innerHTML += '<p class="text-red-500">エラー: 物理エンジン(Ammo.js)の読み込みに失敗しました。</p>';
-            loadingOverlay.style.display = 'none'; // エラー時もローディングを非表示に
         });
 
         function init() {
@@ -270,10 +246,10 @@
             scene.add(directionalLight);
 
             // MMD Helper
-            helper = new THREE.MMDAnimationHelper();
+            helper = new MMDAnimationHelper(); // MMDAnimationHelperもthree-mmd-loaderからインポート
 
             // MMD Loader
-            const loader = new THREE.MMDLoader();
+            const loader = new MMDLoader(); // MMDLoaderもthree-mmd-loaderからインポート
 
             // Load PMX model
             loader.load(
