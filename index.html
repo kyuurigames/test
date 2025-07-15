@@ -142,7 +142,8 @@
     <!-- Three.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- three-mmd-loader: Bundles MMDLoader, MMDAnimationHelper, MMDParser, Ammo.js -->
-    <script type="module" src="https://cdn.jsdelivr.net/npm/three-mmd-loader@0.0.11/dist/mmd-loader.min.js"></script>
+    <!-- This script might attach its components directly to the THREE global object. -->
+    <script src="https://cdn.jsdelivr.net/npm/three-mmd-loader@0.0.11/dist/mmd-loader.min.js"></script>
 
     <script type="module">
         // Firebase imports
@@ -150,9 +151,9 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Import MMDLoader and MMDAnimationHelper from three-mmd-loader
-        // Note: These are imported from the bundled library, not directly from Three.js examples
-        import { MMDLoader, MMDAnimationHelper } from 'https://cdn.jsdelivr.net/npm/three-mmd-loader@0.0.11/dist/mmd-loader.min.js';
+        // MMDLoader and MMDAnimationHelper are expected to be available via the global THREE object
+        // after three-mmd-loader.min.js is loaded.
+        // No direct import for MMDLoader and MMDAnimationHelper from three-mmd-loader is needed here.
 
         // Global variables for Firebase (provided by Canvas environment)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -210,10 +211,6 @@
         let chatHistory = []; // To store chat history for LLM
 
         // Ammo.jsはthree-mmd-loaderにバンドルされているため、個別の初期化は不要です。
-        // ただし、MMDLoaderがAmmo.jsのグローバルな'Ammo'オブジェクトを期待する場合があるため、
-        // 念のため、three-mmd-loaderがロードされた後にMMDLoaderの初期化を行うようにします。
-        // three-mmd-loaderはAmmo.jsを内部で管理するため、Ammo().then(...)は不要になります。
-
         // Three.jsの初期化とMMDモデルのロードは、DOMContentLoadedイベント後に行うのが確実です。
         document.addEventListener('DOMContentLoaded', () => {
             init();
@@ -246,10 +243,12 @@
             scene.add(directionalLight);
 
             // MMD Helper
-            helper = new MMDAnimationHelper(); // MMDAnimationHelperもthree-mmd-loaderからインポート
+            // MMDAnimationHelperをTHREEオブジェクトから取得
+            helper = new THREE.MMDAnimationHelper(); 
 
             // MMD Loader
-            const loader = new MMDLoader(); // MMDLoaderもthree-mmd-loaderからインポート
+            // MMDLoaderをTHREEオブジェクトから取得
+            const loader = new THREE.MMDLoader(); 
 
             // Load PMX model
             loader.load(
