@@ -3,646 +3,504 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MMD Dancing Assistant</title>
+    <title>MMD AI Assistant</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
             overflow: hidden;
         }
-        
+
         #container {
             position: relative;
-            width: 100vw;
-            height: 100vh;
-        }
-        
-        #canvas {
-            display: block;
             width: 100%;
             height: 100%;
         }
-        
-        #ui {
+
+        #canvas-container {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
             z-index: 100;
         }
-        
-        #chatInput {
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            border-radius: 25px;
-            padding: 12px 20px;
-            font-size: 16px;
-            width: 250px;
-            outline: none;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(10px);
-        }
-        
-        #chatInput:focus {
-            background: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-        }
-        
-        #response {
+
+        #chat-container {
             position: absolute;
             bottom: 20px;
             left: 20px;
             right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 15px 20px;
+            max-width: 600px;
+            margin: 0 auto;
+            pointer-events: auto;
+        }
+
+        #chat-messages {
+            background: rgba(255, 255, 255, 0.95);
             border-radius: 15px;
-            font-size: 18px;
-            text-align: center;
+            padding: 20px;
+            margin-bottom: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             backdrop-filter: blur(10px);
-            transform: translateY(100px);
-            opacity: 0;
+        }
+
+        #chat-input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        #chat-input {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            outline: none;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        #send-button {
+            padding: 15px 25px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
             transition: all 0.3s ease;
         }
-        
-        #response.show {
-            transform: translateY(0);
-            opacity: 1;
+
+        #send-button:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
         }
-        
-        #loadingStatus {
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 10px;
+            line-height: 1.4;
+        }
+
+        .user-message {
+            background: #e3f2fd;
+            text-align: right;
+            margin-left: 60px;
+        }
+
+        .ai-message {
+            background: #f3e5f5;
+            margin-right: 60px;
+        }
+
+        #loading {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(255, 255, 255, 0.9);
-            padding: 20px 30px;
-            border-radius: 15px;
-            font-size: 18px;
-            color: #333;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            z-index: 200;
         }
-        
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #3498db;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
+
         #controls {
             position: absolute;
-            top: 80px;
-            left: 20px;
-            z-index: 100;
+            top: 20px;
+            right: 20px;
+            pointer-events: auto;
         }
-        
-        .control-btn {
+
+        .control-button {
+            display: block;
+            margin-bottom: 10px;
+            padding: 10px 15px;
             background: rgba(255, 255, 255, 0.9);
             border: none;
-            border-radius: 8px;
-            padding: 8px 15px;
-            margin: 5px;
+            border-radius: 20px;
             cursor: pointer;
             font-size: 14px;
-            transition: all 0.2s ease;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
         }
-        
-        .control-btn:hover {
+
+        .control-button:hover {
             background: rgba(255, 255, 255, 1);
             transform: translateY(-2px);
         }
-        
-        .control-btn:disabled {
-            background: rgba(255, 255, 255, 0.5);
-            cursor: not-allowed;
-        }
-        
-        #errorMessage {
+
+        #model-info {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 0, 0, 0.9);
+            top: 20px;
+            left: 20px;
             color: white;
-            padding: 20px 30px;
-            border-radius: 15px;
-            font-size: 16px;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            display: none;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
     <div id="container">
-        <canvas id="canvas"></canvas>
+        <div id="canvas-container"></div>
         
-        <div id="ui">
-            <input type="text" id="chatInput" placeholder="「こんにちは」と入力してください..." disabled />
-        </div>
-        
-        <div id="controls">
-            <button class="control-btn" id="resetBtn" onclick="resetCamera()" disabled>カメラリセット</button>
-            <button class="control-btn" id="danceBtn" onclick="toggleDance()" disabled>手動ダンス</button>
-        </div>
-        
-        <div id="response"></div>
-        
-        <div id="loadingStatus">
-            <div class="loading-spinner"></div>
-            MMDモデルを読み込み中...
-        </div>
-        
-        <div id="errorMessage">
-            <strong>エラー:</strong> MMDファイルの読み込みに失敗しました。<br>
-            models/character.pmx と models/dance.vmd が正しく配置されているか確認してください。
+        <div id="ui-overlay">
+            <div id="loading">MMDモデルを読み込み中...</div>
+            
+            <div id="model-info" style="display: none;">
+                <div>モデル: 読み込み済み</div>
+                <div>アニメーション: 準備完了</div>
+            </div>
+            
+            <div id="controls">
+                <button class="control-button" onclick="playRandomMotion()">モーション再生</button>
+                <button class="control-button" onclick="togglePause()">一時停止/再生</button>
+                <button class="control-button" onclick="resetCamera()">カメラリセット</button>
+            </div>
+            
+            <div id="chat-container">
+                <div id="chat-messages"></div>
+                <div id="chat-input-container">
+                    <input type="text" id="chat-input" placeholder="メッセージを入力してください..." onkeypress="handleKeyPress(event)">
+                    <button id="send-button" onclick="sendMessage()">送信</button>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/loaders/MMDLoader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/animation/MMDAnimationHelper.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/animation/AnimationMixer.js"></script>
+
     <script>
-        // Three.js MMDLoader (インライン実装)
-        class MMDLoader {
-            constructor() {
-                this.manager = THREE.DefaultLoadingManager;
-            }
-            
-            load(url, onLoad, onProgress, onError) {
-                const loader = new THREE.FileLoader(this.manager);
-                loader.setResponseType('arraybuffer');
-                
-                loader.load(url, (buffer) => {
-                    try {
-                        const mesh = this.parse(buffer);
-                        onLoad(mesh);
-                    } catch (error) {
-                        if (onError) onError(error);
-                    }
-                }, onProgress, onError);
-            }
-            
-            parse(buffer) {
-                // 簡易PMXパーサー（実際のMMDLoaderはもっと複雑）
-                // ここでは基本的な構造のみ実装
-                const mesh = this.createBasicMMDMesh();
-                return mesh;
-            }
-            
-            createBasicMMDMesh() {
-                // MMDモデルの代替として基本的な人型モデルを作成
-                const group = new THREE.Group();
-                
-                // 体
-                const bodyGeometry = new THREE.BoxGeometry(0.8, 1.2, 0.4);
-                const bodyMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0x88ccff,
-                    shininess: 30
-                });
-                const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-                body.position.y = 0.6;
-                group.add(body);
-                
-                // 頭
-                const headGeometry = new THREE.SphereGeometry(0.35, 16, 16);
-                const headMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xffddaa,
-                    shininess: 50
-                });
-                const head = new THREE.Mesh(headGeometry, headMaterial);
-                head.position.y = 1.5;
-                group.add(head);
-                
-                // 髪（装飾）
-                const hairGeometry = new THREE.SphereGeometry(0.38, 16, 16);
-                const hairMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0x8B4513,
-                    shininess: 80
-                });
-                const hair = new THREE.Mesh(hairGeometry, hairMaterial);
-                hair.position.y = 1.55;
-                hair.scale.set(1, 0.8, 1);
-                group.add(hair);
-                
-                // 左腕
-                const armGeometry = new THREE.BoxGeometry(0.2, 0.8, 0.2);
-                const armMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xffddaa,
-                    shininess: 30
-                });
-                const leftArm = new THREE.Mesh(armGeometry, armMaterial);
-                leftArm.position.set(-0.5, 0.4, 0);
-                group.add(leftArm);
-                
-                // 右腕
-                const rightArm = new THREE.Mesh(armGeometry, armMaterial);
-                rightArm.position.set(0.5, 0.4, 0);
-                group.add(rightArm);
-                
-                // 左足
-                const legGeometry = new THREE.BoxGeometry(0.25, 0.9, 0.25);
-                const legMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0x4169E1,
-                    shininess: 30
-                });
-                const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
-                leftLeg.position.set(-0.2, -0.45, 0);
-                group.add(leftLeg);
-                
-                // 右足
-                const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
-                rightLeg.position.set(0.2, -0.45, 0);
-                group.add(rightLeg);
-                
-                // アニメーション用の参照を保存
-                group.userData = {
-                    body: body,
-                    head: head,
-                    hair: hair,
-                    leftArm: leftArm,
-                    rightArm: rightArm,
-                    leftLeg: leftLeg,
-                    rightLeg: rightLeg
-                };
-                
-                return group;
-            }
-            
-            loadVMD(url, onLoad, onProgress, onError) {
-                const loader = new THREE.FileLoader(this.manager);
-                loader.setResponseType('arraybuffer');
-                
-                loader.load(url, (buffer) => {
-                    try {
-                        const animation = this.parseVMD(buffer);
-                        onLoad(animation);
-                    } catch (error) {
-                        if (onError) onError(error);
-                    }
-                }, onProgress, onError);
-            }
-            
-            parseVMD(buffer) {
-                // 簡易VMDパーサー - 実際のダンスアニメーションデータを生成
-                return {
-                    name: 'dance',
-                    duration: 10, // 10秒
-                    frames: this.generateDanceFrames()
-                };
-            }
-            
-            generateDanceFrames() {
-                const frames = [];
-                const frameCount = 300; // 10秒 * 30fps
-                
-                for (let i = 0; i < frameCount; i++) {
-                    const time = i / 30; // 秒
-                    const progress = time / 10; // 0-1
-                    
-                    frames.push({
-                        time: time,
-                        rotations: {
-                            body: { x: 0, y: Math.sin(progress * Math.PI * 4) * 0.2, z: 0 },
-                            head: { x: 0, y: Math.sin(progress * Math.PI * 6) * 0.3, z: 0 },
-                            leftArm: { x: Math.sin(progress * Math.PI * 8) * 0.5, y: 0, z: Math.sin(progress * Math.PI * 4) * 0.8 },
-                            rightArm: { x: -Math.sin(progress * Math.PI * 8) * 0.5, y: 0, z: -Math.sin(progress * Math.PI * 4) * 0.8 },
-                            leftLeg: { x: Math.sin(progress * Math.PI * 8) * 0.3, y: 0, z: 0 },
-                            rightLeg: { x: -Math.sin(progress * Math.PI * 8) * 0.3, y: 0, z: 0 }
-                        },
-                        positions: {
-                            body: { x: 0, y: Math.abs(Math.sin(progress * Math.PI * 8)) * 0.1, z: 0 }
-                        }
-                    });
-                }
-                
-                return frames;
-            }
-        }
-        
-        // グローバル変数
-        let scene, camera, renderer;
-        let model, danceAnimation;
-        let isLoaded = false;
-        let isDancing = false;
-        let animationId = null;
-        let startTime = 0;
-        
-        // MMDローダーインスタンス
-        const mmdLoader = new MMDLoader();
-        
-        // 初期化
+        let scene, camera, renderer, model, helper;
+        let mixer, clock;
+        let isModelLoaded = false;
+        let isPaused = false;
+        let currentAction = null;
+        let loader;
+        let loadedMotions = {};
+        let isLoadingModel = true;
+
+        // Three.jsの初期化
         function init() {
-            // シーン作成
+            // シーンの作成
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
-            
-            // カメラ設定
-            camera = new THREE.PerspectiveCamera(
-                75,
-                window.innerWidth / window.innerHeight,
-                0.1,
-                1000
-            );
-            camera.position.set(0, 1, 4);
-            camera.lookAt(0, 0, 0);
-            
-            // レンダラー設定
-            const canvas = document.getElementById('canvas');
-            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+
+            // カメラの作成
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 10, 20);
+
+            // レンダラーの作成
+            renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            
-            // ライト設定
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // ライトの設定
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
             scene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(5, 10, 5);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(-1, 1, 1);
             directionalLight.castShadow = true;
             directionalLight.shadow.mapSize.width = 2048;
             directionalLight.shadow.mapSize.height = 2048;
             scene.add(directionalLight);
-            
-            // スポットライト追加
-            const spotLight = new THREE.SpotLight(0xff69b4, 0.5);
-            spotLight.position.set(-5, 8, 3);
-            spotLight.target.position.set(0, 0, 0);
-            scene.add(spotLight);
-            scene.add(spotLight.target);
-            
-            // 床
-            const floorGeometry = new THREE.PlaneGeometry(20, 20);
-            const floorMaterial = new THREE.MeshLambertMaterial({ 
-                color: 0x90EE90,
-                transparent: true,
-                opacity: 0.8
-            });
-            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-            floor.rotation.x = -Math.PI / 2;
-            floor.position.y = -0.9;
-            floor.receiveShadow = true;
-            scene.add(floor);
-            
-            // パーティクル効果
-            addParticles();
-            
-            // MMDモデル読み込み
+
+            // 地面の作成
+            const geometry = new THREE.PlaneGeometry(100, 100);
+            const material = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
+            const ground = new THREE.Mesh(geometry, material);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // コントロールの設定
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 10, 0);
+            controls.maxDistance = 50;
+            controls.minDistance = 5;
+
+            // クロック
+            clock = new THREE.Clock();
+
+            // MMDモデルとアニメーションを読み込み
             loadMMDModel();
             
-            // アニメーションループ開始
+            // アニメーションループ
             animate();
         }
-        
-        function addParticles() {
-            const particleCount = 100;
-            const particles = new THREE.BufferGeometry();
-            const positions = [];
-            const colors = [];
-            
-            for (let i = 0; i < particleCount; i++) {
-                positions.push(
-                    (Math.random() - 0.5) * 20,
-                    Math.random() * 10,
-                    (Math.random() - 0.5) * 20
-                );
-                
-                colors.push(
-                    Math.random(),
-                    Math.random(),
-                    Math.random()
-                );
-            }
-            
-            particles.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            particles.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-            
-            const particleMaterial = new THREE.PointsMaterial({
-                size: 0.1,
-                vertexColors: true,
-                transparent: true,
-                opacity: 0.6
-            });
-            
-            const particleSystem = new THREE.Points(particles, particleMaterial);
-            scene.add(particleSystem);
-        }
-        
+
+        // MMDモデルの読み込み
         function loadMMDModel() {
-            // PMXファイル読み込み
-            mmdLoader.load(
-                'models/character.pmx',
-                (mesh) => {
-                    model = mesh;
+            loader = new THREE.MMDLoader();
+            
+            // プログレスコールバック
+            const onProgress = (progress) => {
+                const percent = Math.round((progress.loaded / progress.total) * 100);
+                document.getElementById('loading').textContent = `MMDモデルを読み込み中... ${percent}%`;
+            };
+
+            // エラーハンドリング
+            const onError = (error) => {
+                console.error('モデルの読み込みに失敗しました:', error);
+                document.getElementById('loading').textContent = 'モデルの読み込みに失敗しました';
+            };
+
+            // モデルの読み込み
+            loader.load(
+                'models/model.pmx',
+                (object) => {
+                    model = object;
+                    model.position.set(0, 0, 0);
+                    model.scale.set(1, 1, 1);
                     model.castShadow = true;
                     model.receiveShadow = true;
+                    
+                    // マテリアルの設定
+                    model.traverse((child) => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+                    
                     scene.add(model);
                     
-                    // VMDファイル読み込み
-                    loadVMDAnimation();
-                },
-                (progress) => {
-                    console.log('Loading progress:', progress);
-                },
-                (error) => {
-                    console.error('Model loading error:', error);
-                    showError('PMXファイルの読み込みに失敗しました。');
-                }
-            );
-        }
-        
-        function loadVMDAnimation() {
-            mmdLoader.loadVMD(
-                'models/dance.vmd',
-                (animation) => {
-                    danceAnimation = animation;
+                    // アニメーションヘルパーの初期化
+                    helper = new THREE.MMDAnimationHelper({
+                        afterglow: 2.0,
+                        resetPhysicsOnLoop: true
+                    });
                     
-                    // 読み込み完了
-                    hideLoading();
-                    enableControls();
-                    isLoaded = true;
+                    // モーションの読み込み
+                    loadMotions();
                 },
-                (progress) => {
-                    console.log('Animation loading progress:', progress);
-                },
-                (error) => {
-                    console.error('Animation loading error:', error);
-                    showError('VMDファイルの読み込みに失敗しました。');
-                }
+                onProgress,
+                onError
             );
         }
-        
-        function showError(message) {
-            document.getElementById('loadingStatus').style.display = 'none';
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.innerHTML = `<strong>エラー:</strong> ${message}`;
-            errorDiv.style.display = 'block';
-        }
-        
-        function hideLoading() {
-            document.getElementById('loadingStatus').style.display = 'none';
-        }
-        
-        function enableControls() {
-            document.getElementById('chatInput').disabled = false;
-            document.getElementById('resetBtn').disabled = false;
-            document.getElementById('danceBtn').disabled = false;
+
+        // モーションの読み込み
+        function loadMotions() {
+            const motionFiles = ['models/motion.vmd'];
+            let loadedCount = 0;
             
-            // チャット入力設定
-            const input = document.getElementById('chatInput');
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    handleInput(this.value);
-                    this.value = '';
-                }
+            motionFiles.forEach((motionFile, index) => {
+                loader.loadVMD(
+                    motionFile,
+                    (vmd) => {
+                        loadedMotions[`motion_${index}`] = vmd;
+                        loadedCount++;
+                        
+                        if (loadedCount === motionFiles.length) {
+                            // すべてのモーションが読み込まれたら初期化完了
+                            initializeAnimation();
+                        }
+                    },
+                    (progress) => {
+                        const percent = Math.round((progress.loaded / progress.total) * 100);
+                        document.getElementById('loading').textContent = `モーションを読み込み中... ${percent}%`;
+                    },
+                    (error) => {
+                        console.error('モーションの読み込みに失敗しました:', error);
+                        loadedCount++; // エラーでもカウントを進める
+                        
+                        if (loadedCount === motionFiles.length) {
+                            initializeAnimation();
+                        }
+                    }
+                );
             });
         }
-        
-        function handleInput(message) {
-            if (!isLoaded || !model || !danceAnimation) return;
+
+        // アニメーションの初期化
+        function initializeAnimation() {
+            try {
+                // 基本モーションを設定
+                if (loadedMotions.motion_0) {
+                    helper.add(model, {
+                        animation: loadedMotions.motion_0,
+                        physics: true
+                    });
+                }
+                
+                mixer = helper.objects.get(model).mixer;
+                
+                // モデル読み込み完了
+                isModelLoaded = true;
+                isLoadingModel = false;
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('model-info').style.display = 'block';
+                
+                // 初期モーションを開始
+                playMotion();
+                
+                console.log('MMDモデルとアニメーションの初期化が完了しました');
+            } catch (error) {
+                console.error('アニメーションの初期化に失敗しました:', error);
+                document.getElementById('loading').textContent = 'アニメーションの初期化に失敗しました';
+            }
+        }
+
+        // モーションを再生
+        function playMotion() {
+            if (!model || !helper || !mixer) return;
             
-            const response = document.getElementById('response');
+            try {
+                // 現在のアクションを停止
+                if (currentAction) {
+                    currentAction.stop();
+                }
+                
+                // 新しいアクションを作成して再生
+                const actions = mixer.clipAction(mixer._clips[0]);
+                if (actions) {
+                    actions.reset();
+                    actions.play();
+                    currentAction = actions;
+                    console.log('モーションを再生中');
+                } else {
+                    console.log('アクションが見つかりませんでした');
+                }
+            } catch (error) {
+                console.error('モーションの再生に失敗しました:', error);
+            }
+        }
+
+        // ランダムモーション（VMDの場合は同じモーションを再生）
+        function playRandomMotion() {
+            if (!mixer) return;
             
-            if (message.toLowerCase().includes('こんにちは') || 
-                message.toLowerCase().includes('hello') || 
-                message.toLowerCase().includes('hi')) {
-                
-                // 応答表示
-                response.textContent = 'こんにちは！一緒に踊りましょう！🎵✨';
-                response.classList.add('show');
-                
-                // 踊り開始
-                startDance();
-                
-                // 5秒後に応答を隠す
-                setTimeout(() => {
-                    response.classList.remove('show');
-                }, 5000);
-                
+            // VMDモーションをリスタート
+            if (currentAction) {
+                currentAction.reset();
+                currentAction.play();
+                console.log('モーションをリスタートしました');
             } else {
-                response.textContent = '「こんにちは」と言ってみてください！';
-                response.classList.add('show');
-                
-                setTimeout(() => {
-                    response.classList.remove('show');
-                }, 3000);
+                playMotion();
             }
         }
-        
-        function startDance() {
-            if (!model || !danceAnimation || isDancing) return;
+
+        // 一時停止/再生
+        function togglePause() {
+            if (!mixer) return;
             
-            isDancing = true;
-            startTime = Date.now();
+            isPaused = !isPaused;
             
-            // 10秒後に自動停止
-            setTimeout(() => {
-                stopDance();
-            }, 10000);
-        }
-        
-        function stopDance() {
-            isDancing = false;
-            
-            // モデルを初期位置に戻す
-            if (model && model.userData) {
-                const parts = model.userData;
-                Object.values(parts).forEach(part => {
-                    if (part.rotation) {
-                        part.rotation.set(0, 0, 0);
-                    }
-                    if (part.position && part !== parts.body) {
-                        part.position.set(part.position.x, part.position.y, 0);
-                    }
-                });
-            }
-        }
-        
-        function toggleDance() {
-            if (!isLoaded) return;
-            
-            if (isDancing) {
-                stopDance();
+            if (isPaused) {
+                mixer.timeScale = 0;
+                console.log('一時停止');
             } else {
-                startDance();
+                mixer.timeScale = 1;
+                console.log('再生');
             }
         }
-        
-        function updateDanceAnimation() {
-            if (!isDancing || !model || !danceAnimation) return;
-            
-            const elapsed = (Date.now() - startTime) / 1000;
-            const progress = (elapsed % danceAnimation.duration) / danceAnimation.duration;
-            
-            // フレーム補間
-            const frameIndex = Math.floor(progress * danceAnimation.frames.length);
-            const frame = danceAnimation.frames[frameIndex];
-            
-            if (frame && model.userData) {
-                const parts = model.userData;
-                
-                // 回転アニメーション
-                Object.keys(frame.rotations).forEach(partName => {
-                    const part = parts[partName];
-                    const rotation = frame.rotations[partName];
-                    if (part && rotation) {
-                        part.rotation.set(rotation.x, rotation.y, rotation.z);
-                    }
-                });
-                
-                // 位置アニメーション
-                Object.keys(frame.positions).forEach(partName => {
-                    const part = parts[partName];
-                    const position = frame.positions[partName];
-                    if (part && position) {
-                        part.position.y += position.y;
-                    }
-                });
-            }
-        }
-        
+
+        // カメラリセット
         function resetCamera() {
-            camera.position.set(0, 1, 4);
-            camera.lookAt(0, 0, 0);
+            camera.position.set(0, 10, 20);
+            camera.lookAt(0, 10, 0);
         }
-        
-        // アニメーションループ
+
+        // メインアニメーションループ
         function animate() {
             requestAnimationFrame(animate);
-            
-            // ダンスアニメーション更新
-            updateDanceAnimation();
-            
-            // カメラを少し回転（ダンス中のみ）
-            if (isDancing) {
-                const time = Date.now() * 0.0005;
-                camera.position.x = Math.cos(time) * 4;
-                camera.position.z = Math.sin(time) * 4;
-                camera.lookAt(0, 0, 0);
+
+            const delta = clock.getDelta();
+
+            if (isModelLoaded && helper && !isPaused) {
+                helper.update(delta);
             }
-            
+
             renderer.render(scene, camera);
         }
-        
+
+        // チャット機能
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            // ユーザーメッセージを表示
+            addMessage(message, 'user');
+            input.value = '';
+
+            // 話している間のモーション（モーションをリスタート）
+            if (isModelLoaded) {
+                playRandomMotion();
+            }
+
+            // 簡単なAI応答をシミュレート
+            setTimeout(() => {
+                const responses = [
+                    'こんにちは！何かお手伝いできることはありますか？',
+                    'それは興味深いですね！もっと詳しく聞かせてください。',
+                    'なるほど、理解しました。他に何か質問はありますか？',
+                    'すばらしい質問ですね！一緒に考えてみましょう。',
+                    'ありがとうございます！お役に立てて嬉しいです。',
+                    'おもしろいトピックですね！詳しく教えてください。',
+                    'そうですね、私もそう思います。',
+                    'もう少し詳しく説明していただけますか？'
+                ];
+                const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+                addMessage(randomResponse, 'ai');
+            }, 1000);
+        }
+
+        function addMessage(message, sender) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            messageDiv.textContent = message;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
         // ウィンドウリサイズ対応
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
-        
-        // 初期化実行
+
+        // 初期化
         init();
+
+        // 初期メッセージ
+        addMessage('こんにちは！私はMMD AIアシスタントです。何でもお聞きください！', 'ai');
     </script>
 </body>
 </html>
