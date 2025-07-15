@@ -1,135 +1,401 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>MMD AI Assistant</title>
-  <style>
-    body { margin: 0; overflow: hidden; }
-    canvas { display: block; }
-    #input-container {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.7);
-      color: white;
-      padding: 10px;
-    }
-    #user-input { width: 300px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MMD Dancing Assistant</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+        }
+        
+        #chatInput {
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 25px;
+            padding: 12px 20px;
+            font-size: 16px;
+            width: 250px;
+            outline: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        
+        #chatInput:focus {
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        #response {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 15px;
+            font-size: 18px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        
+        #response.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        #loadingStatus {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px 30px;
+            border-radius: 15px;
+            font-size: 18px;
+            color: #333;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #controls {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            z-index: 100;
+        }
+        
+        .control-btn {
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 8px;
+            padding: 8px 15px;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
 <body>
-  <div id="input-container">
-    <input type="text" id="user-input" placeholder="話しかけてみて！">
-    <button onclick="speak()">話す</button>
-    <button onclick="startRecognition()">音声入力</button>
-  </div>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+        
+        <div id="ui">
+            <input type="text" id="chatInput" placeholder="「こんにちは」と入力してください..." />
+        </div>
+        
+        <div id="controls">
+            <button class="control-btn" onclick="resetCamera()">カメラリセット</button>
+            <button class="control-btn" onclick="toggleAnimation()">アニメーション切替</button>
+        </div>
+        
+        <div id="response"></div>
+        
+        <div id="loadingStatus">
+            <div class="loading-spinner"></div>
+            MMDモデルを読み込み中...
+        </div>
+    </div>
 
-  <!-- Three.jsと依存ライブラリ -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-  <script src="/lib/mmdparser.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/MMDLoader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/animation/MMDAnimationHelper.js"></script>
-
-  <script>
-    // シーンを初期化する関数
-    function initializeScene() {
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-      camera.position.set(0, 10, 30);
-      const renderer = new THREE.WebGLRenderer();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      document.body.appendChild(renderer.domElement);
-
-      const ambientLight = new THREE.AmbientLight(0x404040);
-      scene.add(ambientLight);
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-      directionalLight.position.set(0, 1, 1);
-      scene.add(directionalLight);
-
-      const helper = new THREE.MMDAnimationHelper();
-      const loader = new THREE.MMDLoader();
-      loader.load(
-        '/models/miku.pmx',
-        function (mesh) {
-          console.log('Model loaded successfully:', mesh);
-          scene.add(mesh);
-          loader.loadAnimation(
-            '/motions/dance.vmd',
-            mesh,
-            function (animation) {
-              console.log('Animation loaded successfully:', animation);
-              helper.add(mesh, { animation: animation });
-            },
-            function (xhr) { console.log((xhr.loaded / xhr.total * 100) + '% animation loaded'); },
-            function (error) { console.error('Animation load error:', error); }
-          );
-        },
-        function (xhr) { console.log((xhr.loaded / xhr.total * 100) + '% model loaded'); },
-        function (error) { console.error('MMD load error:', error); }
-      );
-
-      const clock = new THREE.Clock();
-      function animate() {
-        requestAnimationFrame(animate);
-        helper.update(clock.getDelta());
-        renderer.render(scene, camera);
-      }
-      animate();
-
-      return { scene, camera, renderer };
-    }
-
-    // シーン初期化
-    const { scene, camera, renderer } = initializeScene();
-
-    // 音声合成（Web Speech API）
-    function speak(text = document.getElementById('user-input').value) {
-      if (!text) text = 'こんにちは！私はMMD AIアシスタントです。';
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'ja-JP';
-      speechSynthesis.speak(utterance);
-      console.log('Speaking:', text);
-    }
-
-    // 音声認識
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'ja-JP';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    function startRecognition() {
-      recognition.start();
-      console.log('音声認識開始');
-    }
-
-    recognition.onresult = function (event) {
-      const transcript = event.results[0][0].transcript;
-      document.getElementById('user-input').value = transcript;
-      const response = simpleAIResponse(transcript);
-      speak(response);
-    };
-
-    recognition.onerror = function (event) {
-      console.error('音声認識エラー:', event.error);
-    };
-
-    // 簡易AI応答ロジック
-    function simpleAIResponse(input) {
-      if (input.includes('こんにちは')) {
-        return 'やあ！元気？';
-      } else if (input.includes('ダンス')) {
-        return 'ダンスを見たい？じゃあ、動いてみるね！';
-      } else {
-        return 'ふむふむ、面白いね！もう少し話してみて！';
-      }
-    }
-
-    // ウィンドウリサイズ対応
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-  </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Three.js基本設定
+        let scene, camera, renderer, mixer;
+        let model, animations = [];
+        let currentAnimation = null;
+        let isAnimating = false;
+        
+        // デモ用の仮想MMDシステム
+        class VirtualMMDModel {
+            constructor() {
+                this.mesh = null;
+                this.animations = [];
+                this.currentAnimation = null;
+                this.mixer = null;
+            }
+            
+            // 簡単なキャラクター代替モデル
+            createSimpleCharacter() {
+                const geometry = new THREE.BoxGeometry(0.5, 1.5, 0.3);
+                const material = new THREE.MeshPhongMaterial({ color: 0x88ccff });
+                const body = new THREE.Mesh(geometry, material);
+                
+                // 頭
+                const headGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+                const headMaterial = new THREE.MeshPhongMaterial({ color: 0xffddaa });
+                const head = new THREE.Mesh(headGeometry, headMaterial);
+                head.position.y = 1.0;
+                body.add(head);
+                
+                // 簡単な腕
+                const armGeometry = new THREE.BoxGeometry(0.15, 0.8, 0.15);
+                const armMaterial = new THREE.MeshPhongMaterial({ color: 0xffddaa });
+                
+                const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+                leftArm.position.set(-0.4, 0.2, 0);
+                body.add(leftArm);
+                
+                const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+                rightArm.position.set(0.4, 0.2, 0);
+                body.add(rightArm);
+                
+                this.mesh = body;
+                this.leftArm = leftArm;
+                this.rightArm = rightArm;
+                this.head = head;
+                
+                return body;
+            }
+            
+            // 簡単な踊りアニメーション
+            startDanceAnimation() {
+                if (this.currentAnimation) {
+                    this.currentAnimation.stop();
+                }
+                
+                const duration = 4000; // 4秒
+                const startTime = Date.now();
+                
+                const animate = () => {
+                    const elapsed = Date.now() - startTime;
+                    const progress = (elapsed % duration) / duration;
+                    const wave = Math.sin(progress * Math.PI * 4);
+                    const wave2 = Math.sin(progress * Math.PI * 6);
+                    
+                    if (this.leftArm) {
+                        this.leftArm.rotation.z = wave * 0.5;
+                        this.leftArm.rotation.x = wave2 * 0.3;
+                    }
+                    
+                    if (this.rightArm) {
+                        this.rightArm.rotation.z = -wave * 0.5;
+                        this.rightArm.rotation.x = -wave2 * 0.3;
+                    }
+                    
+                    if (this.head) {
+                        this.head.rotation.y = wave * 0.2;
+                    }
+                    
+                    if (this.mesh) {
+                        this.mesh.position.y = Math.abs(wave) * 0.1;
+                        this.mesh.rotation.y = wave * 0.1;
+                    }
+                    
+                    if (isAnimating) {
+                        requestAnimationFrame(animate);
+                    }
+                };
+                
+                isAnimating = true;
+                animate();
+            }
+            
+            stopAnimation() {
+                isAnimating = false;
+                if (this.mesh) {
+                    this.mesh.position.y = 0;
+                    this.mesh.rotation.y = 0;
+                }
+                if (this.leftArm) {
+                    this.leftArm.rotation.set(0, 0, 0);
+                }
+                if (this.rightArm) {
+                    this.rightArm.rotation.set(0, 0, 0);
+                }
+                if (this.head) {
+                    this.head.rotation.set(0, 0, 0);
+                }
+            }
+        }
+        
+        // 初期化
+        function init() {
+            // シーン作成
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            
+            // カメラ設定
+            camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+            camera.position.set(0, 1, 3);
+            
+            // レンダラー設定
+            const canvas = document.getElementById('canvas');
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            // ライト設定
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 10, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            // 床
+            const floorGeometry = new THREE.PlaneGeometry(10, 10);
+            const floorMaterial = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -0.75;
+            floor.receiveShadow = true;
+            scene.add(floor);
+            
+            // 仮想MMDモデル作成
+            model = new VirtualMMDModel();
+            const character = model.createSimpleCharacter();
+            character.castShadow = true;
+            scene.add(character);
+            
+            // ローディング完了
+            hideLoading();
+            
+            // コントロール設定
+            setupControls();
+            
+            // アニメーションループ
+            animate();
+        }
+        
+        function hideLoading() {
+            const loadingStatus = document.getElementById('loadingStatus');
+            loadingStatus.style.display = 'none';
+        }
+        
+        function setupControls() {
+            const input = document.getElementById('chatInput');
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    handleInput(this.value);
+                    this.value = '';
+                }
+            });
+        }
+        
+        function handleInput(message) {
+            const response = document.getElementById('response');
+            
+            if (message.toLowerCase().includes('こんにちは') || 
+                message.toLowerCase().includes('hello') || 
+                message.toLowerCase().includes('hi')) {
+                
+                // 応答表示
+                response.textContent = 'こんにちは！一緒に踊りましょう！🎵';
+                response.classList.add('show');
+                
+                // 踊り開始
+                model.startDanceAnimation();
+                
+                // 5秒後に応答を隠す
+                setTimeout(() => {
+                    response.classList.remove('show');
+                }, 5000);
+                
+                // 10秒後にダンス停止
+                setTimeout(() => {
+                    model.stopAnimation();
+                }, 10000);
+                
+            } else {
+                response.textContent = '「こんにちは」と言ってみてください！';
+                response.classList.add('show');
+                
+                setTimeout(() => {
+                    response.classList.remove('show');
+                }, 3000);
+            }
+        }
+        
+        function resetCamera() {
+            camera.position.set(0, 1, 3);
+            camera.lookAt(0, 0, 0);
+        }
+        
+        function toggleAnimation() {
+            if (isAnimating) {
+                model.stopAnimation();
+            } else {
+                model.startDanceAnimation();
+            }
+        }
+        
+        // アニメーションループ
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // カメラを少し回転
+            const time = Date.now() * 0.0002;
+            camera.position.x = Math.cos(time) * 3;
+            camera.position.z = Math.sin(time) * 3;
+            camera.lookAt(0, 0, 0);
+            
+            renderer.render(scene, camera);
+        }
+        
+        // ウィンドウリサイズ対応
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // 初期化実行
+        init();
+    </script>
 </body>
 </html>
