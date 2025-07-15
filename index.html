@@ -150,13 +150,20 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/MMDAnimationHelper.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/CCDIKHelper.js"></script>
 
-    <script type="module">
+    <!-- Changed from type="module" to a regular script -->
+    <script>
         // Firebase imports (Placeholder for future AI chat integration with Firestore)
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // Note: Firebase imports are still ES Modules. If __firebase_config is provided,
+        // Firebase will be initialized. Otherwise, it will log a warning and skip initialization.
+        // If you need Firebase functionality and this script is not a module,
+        // you might need to load Firebase SDKs as global scripts or adjust the initialization.
+        // For now, it will work as long as you don't explicitly rely on Firebase functionality
+        // that requires module imports in this global script context.
+        // For the purpose of this demo, we'll assume the global variables are sufficient
+        // or Firebase is not strictly required for the core MMD + Chat functionality.
 
         // Global variables for Firebase (provided by Canvas environment)
+        // These variables are made available globally by the Canvas environment.
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
@@ -169,6 +176,13 @@
             // Only initialize Firebase if firebaseConfig contains a projectId
             if (firebaseConfig && firebaseConfig.projectId) {
                 try {
+                    // Dynamically import Firebase modules if needed, or ensure they are loaded globally
+                    // For now, assuming Firebase SDK is globally available or not critical for core demo.
+                    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+                    const { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+                    const { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+
+
                     app = initializeApp(firebaseConfig);
                     db = getFirestore(app);
                     auth = getAuth(app);
