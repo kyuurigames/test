@@ -27,7 +27,6 @@
   <!-- Three.jsと依存ライブラリ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
   <script src="/lib/mmdparser.min.js"></script>
-  <script src="https://unpkg.com/three@0.134.0/examples/js/libs/ammo.wasm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/MMDLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/animation/MMDAnimationHelper.js"></script>
 
@@ -52,12 +51,14 @@
       loader.load(
         '/models/miku.pmx',
         function (mesh) {
+          console.log('Model loaded successfully:', mesh);
           scene.add(mesh);
           loader.loadAnimation(
             '/motions/dance.vmd',
             mesh,
             function (animation) {
-              helper.add(mesh, { animation: animation, physics: false });
+              console.log('Animation loaded successfully:', animation);
+              helper.add(mesh, { animation: animation });
             },
             function (xhr) { console.log((xhr.loaded / xhr.total * 100) + '% animation loaded'); },
             function (error) { console.error('Animation load error:', error); }
@@ -78,19 +79,8 @@
       return { scene, camera, renderer };
     }
 
-    // Ammo.jsの初期化を試み、失敗してもシーンを初期化
-    if (typeof Ammo !== 'undefined') {
-      Ammo().then(function (AmmoLib) {
-        window.Ammo = AmmoLib;
-        initializeScene();
-      }).catch(function (error) {
-        console.warn('Ammo.js initialization failed, proceeding without physics:', error);
-        initializeScene();
-      });
-    } else {
-      console.warn('Ammo.js not available, proceeding without physics');
-      initializeScene();
-    }
+    // シーン初期化
+    const { scene, camera, renderer } = initializeScene();
 
     // 音声合成（Web Speech API）
     function speak(text = document.getElementById('user-input').value) {
@@ -136,7 +126,6 @@
 
     // ウィンドウリサイズ対応
     window.addEventListener('resize', () => {
-      const { camera, renderer } = initializeScene();
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
