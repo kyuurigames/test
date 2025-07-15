@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI MMD アシスタント</title>
     <!-- Tailwind CSS CDN -->
+    <!-- Note: For production environments, it's recommended to install Tailwind CSS as a PostCSS plugin or use the Tailwind CLI. -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -140,6 +141,8 @@
 
     <!-- Three.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- MMDParser for MMDLoader -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/mmdparser.min.js"></script>
     <!-- MMDLoader and MMDAnimationHelper -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/MMDLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/MMDAnimationHelper.js"></script>
@@ -162,31 +165,36 @@
 
         // Initialize Firebase and authenticate
         const initFirebase = async () => {
-            try {
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
+            // Only initialize Firebase if firebaseConfig contains a projectId
+            if (firebaseConfig && firebaseConfig.projectId) {
+                try {
+                    app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
 
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        console.log("Firebase authenticated. User ID:", userId);
-                    } else {
-                        // Sign in anonymously if no token is available or user is not signed in
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                            userId = auth.currentUser.uid;
-                            console.log("Signed in with custom token. User ID:", userId);
+                    onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            userId = user.uid;
+                            console.log("Firebase authenticated. User ID:", userId);
                         } else {
-                            await signInAnonymously(auth);
-                            userId = auth.currentUser.uid;
-                            console.log("Signed in anonymously. User ID:", userId);
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                                userId = auth.currentUser.uid;
+                                console.log("Signed in with custom token. User ID:", userId);
+                            } else {
+                                await signInAnonymously(auth);
+                                userId = auth.currentUser.uid;
+                                console.log("Signed in anonymously. User ID:", userId);
+                            }
                         }
-                    }
-                    isAuthReady = true;
-                });
-            } catch (error) {
-                console.error("Firebase initialization or authentication error:", error);
+                        isAuthReady = true;
+                    });
+                } catch (error) {
+                    console.error("Firebase initialization or authentication error:", error);
+                }
+            } else {
+                console.warn("Firebase config is missing projectId. Firebase will not be initialized.");
+                isAuthReady = true; // Mark as ready even if Firebase isn't initialized to proceed with other app logic
             }
         };
 
