@@ -145,6 +145,13 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/ammo.wasm.js"></script>
     <!-- MMDParser for MMDLoader (MUST be loaded BEFORE MMDLoader.js) -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/mmdparser.min.js"></script>
+    <!-- Explicitly attach MMDParser to THREE object if it's not already there -->
+    <script>
+        if (typeof MMDParser !== 'undefined' && typeof THREE !== 'undefined' && !THREE.MMDParser) {
+            THREE.MMDParser = MMDParser;
+            console.log('MMDParser explicitly attached to THREE.');
+        }
+    </script>
     <!-- MMDLoader and MMDAnimationHelper -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/MMDLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/MMDAnimationHelper.js"></script>
